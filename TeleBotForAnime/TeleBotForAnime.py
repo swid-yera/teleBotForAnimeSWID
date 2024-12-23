@@ -1,15 +1,16 @@
 ﻿import telebot
 from telebot import types
-import requests
-from bs4 import BeautifulSoup
+from config import BOT_TOKEN
+from database import blue_lock_2nd_season
 
-bot = telebot.TeleBot('BOT-TOKEN')
+bot = telebot.TeleBot(BOT_TOKEN)
 
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton("🎥 Найти аниме-серию")
-    markup.add(btn1)
+    btn2 = types.KeyboardButton("⚽ Blue Lock 2 сезон: Блю Лок против юношеской сборной Японии")
+    markup.add(btn1, btn2)
     bot.send_message(
         message.chat.id,
         "👋 Привет! Я помогу тебе найти серии аниме. Нажми на кнопку ниже, чтобы начать!",
@@ -20,30 +21,25 @@ def start(message):
 def handle_text(message):
     if message.text == "🎥 Найти аниме-серию":
         bot.send_message(message.chat.id, "Введите название аниме:")
+    elif message.text == "⚽ Blue Lock 2 сезон: Блю Лок против юношеской сборной Японии":
+        select_episode(message.chat.id)
+    elif message.text in blue_lock_2nd_season:
+        send_episode_link(message)
     else:
-        search_anime(message.text, message.chat.id)
+        bot.send_message(message.chat.id, "❌ Команда не распознана. Попробуйте снова.")
 
-def search_anime(query, chat_id):
-    url = f"https://gogoanime.tel//search.html?keyword={query.replace(' ', '%20')}"
+def select_episode(chat_id):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    for episode in blue_lock_2nd_season.keys():
+        markup.add(types.KeyboardButton(episode))
+    bot.send_message(
+        chat_id,
+        "Выберите серию из второго сезона Blue Lock:",
+        reply_markup=markup
+    )
 
-    try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        results = soup.find_all('p', class_='name')
-        if not results:
-            bot.send_message(chat_id, "❌ Аниме не найдено. Попробуйте другое название.")
-            return
-
-        message = "📜 Вот что я нашёл:\n\n"
-        for result in results[:5]:
-            title = result.a.text
-            link = "https://gogoanime.tel" + result.a['href']
-            message += f"🔗 [{title}]({link})\n"
-
-        bot.send_message(chat_id, message, parse_mode='Markdown')
-    except Exception as e:
-        bot.send_message(chat_id, "⚠ Произошла ошибка. Попробуйте позже.")
-        print(e)
+def send_episode_link(message):
+    video_url = blue_lock_2nd_season[message.text]
+    bot.send_message(message.chat.id, f"🔗 Ссылка на {message.text}: {video_url}")
 
 bot.polling(none_stop=True)
